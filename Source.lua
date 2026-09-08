@@ -14,6 +14,7 @@ local ProtectGui = protectgui or (syn and syn.protect_gui) or (function() end);
 local ScreenGui = Instance.new('ScreenGui');
 ProtectGui(ScreenGui);
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global;
+ScreenGui.IgnoreGuiInset = true;
 ScreenGui.Parent = CoreGui;
 
 local Toggles = {};
@@ -68,11 +69,7 @@ Library.CursorLoopRunning = false;
 
 function Library:CursorPos()
     local loc = InputService:GetMouseLocation()
-    local inset = 0
-    pcall(function()
-        inset = game:GetService("GuiService"):GetGuiInset().Y
-    end)
-    return loc.X, loc.Y - inset
+    return loc.X, loc.Y
 end
 
 Library.BlurEffect = Instance.new("BlurEffect")
@@ -1232,26 +1229,17 @@ do
             ZIndex = 8;
             Parent = PickInner;
         });
-        local function updateModeSelectPos()
-            local insetY = 0
-            pcall(function()
-                insetY = game:GetService("GuiService"):GetGuiInset().Y
-            end)
-            local x = ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X - 28
-            local y = ToggleLabel.AbsolutePosition.Y + ToggleLabel.AbsoluteSize.Y + 4
-            ModeSelectOuter.Position = UDim2.fromOffset(x, y)
-        end
         local ModeSelectOuter = Library:Create('Frame', {
             BorderColor3 = Color3.new(0, 0, 0);
-            Position = UDim2.fromOffset(0, 0);
+            Position = UDim2.fromOffset(ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X + 4, ToggleLabel.AbsolutePosition.Y + 1);
             Size = UDim2.new(0, 60, 0, 45 + 2);
             Visible = false;
             ZIndex = 14;
             Parent = ScreenGui;
         });
-        updateModeSelectPos();
-        ToggleLabel:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateModeSelectPos);
-        ToggleLabel:GetPropertyChangedSignal('AbsoluteSize'):Connect(updateModeSelectPos);
+        ToggleLabel:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
+            ModeSelectOuter.Position = UDim2.fromOffset(ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X + 4, ToggleLabel.AbsolutePosition.Y + 1);
+        end);
         local ModeSelectInner = Library:Create('Frame', {
             BackgroundColor3 = Library.BackgroundColor;
             BorderColor3 = Library.OutlineColor;
@@ -1431,7 +1419,7 @@ do
         local TouchMoveThreshold = Info.TouchMoveThreshold or 10;
 
         local function OpenModeSelect()
-            updateModeSelectPos(); ModeSelectOuter.Visible = true;
+            ModeSelectOuter.Visible = true;
         end;
 
         local function BeginPicking()
