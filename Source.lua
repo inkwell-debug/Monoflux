@@ -1273,19 +1273,18 @@ do
             local menuH = ModeSelectOuter.Size.Y.Offset
             local menuW = ModeSelectOuter.Size.X.Offset
             local cam = workspace.CurrentCamera
-            local vw = (cam and cam.ViewportSize.X or 1920)
-            local vh = (cam and cam.ViewportSize.Y or 1080)
-            -- convert AbsolutePosition -> ScreenGui coords (no IgnoreGuiInset)
-            local x = abs.X - inset.X
-            local yBelow = abs.Y + asz.Y + 4 - inset.Y
-            local yAbove = abs.Y - menuH - 4 - inset.Y
-            local y = yBelow
-            -- prefer BELOW the key button so it does not cover the opener
-            if yBelow + menuH > (vh - inset.Y) - 8 and yAbove > 4 then
-                y = yAbove
+            local vw = (cam and cam.ViewportSize.X or 1920) - inset.X
+            local vh = (cam and cam.ViewportSize.Y or 1080) - inset.Y
+            -- bottom-right of the key button (ScreenGui coords)
+            local x = abs.X + asz.X + 4 - inset.X
+            local y = abs.Y + asz.Y + 4 - inset.Y
+            -- if no room on the right, open to the left of the button
+            if x + menuW > vw - 4 then
+                x = abs.X - menuW - 4 - inset.X
             end
-            if x + menuW > (vw - inset.X) - 8 then
-                x = (vw - inset.X) - menuW - 8
+            -- if no room below, open above the button
+            if y + menuH > vh - 4 then
+                y = abs.Y - menuH - 4 - inset.Y
             end
             if x < 4 then x = 4 end
             if y < 4 then y = 4 end
