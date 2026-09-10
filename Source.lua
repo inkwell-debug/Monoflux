@@ -1275,14 +1275,11 @@ do
             local cam = workspace.CurrentCamera
             local vw = (cam and cam.ViewportSize.X or 1920) - inset.X
             local vh = (cam and cam.ViewportSize.Y or 1080) - inset.Y
-            -- bottom-right of the key button (ScreenGui coords)
             local x = abs.X + asz.X + 4 - inset.X
             local y = abs.Y + asz.Y + 4 - inset.Y
-            -- if no room on the right, open to the left of the button
             if x + menuW > vw - 4 then
                 x = abs.X - menuW - 4 - inset.X
             end
-            -- if no room below, open above the button
             if y + menuH > vh - 4 then
                 y = abs.Y - menuH - 4 - inset.Y
             end
@@ -1318,7 +1315,6 @@ do
 
         for Idx, Mode in next, Modes do
             local ModeButton = {};
-            -- TextButton so mobile taps register without drag-from-outside
             local Btn = Library:Create('TextButton', {
                 BackgroundTransparency = 1;
                 Size = UDim2.new(1, 0, 0, 15);
@@ -2294,164 +2290,153 @@ do
         return Toggle;
     end;
 
+    -- ============================================================
+    --  AddSlider — название живёт внутри слайдера: "name: value%"
+    -- ============================================================
     function Funcs:AddSlider(Idx, Info)
-        assert(Info.Default, 'AddSlider: Missing default value.');
-        assert(Info.Text, 'AddSlider: Missing slider text.');
-        assert(Info.Min, 'AddSlider: Missing minimum value.');
-        assert(Info.Max, 'AddSlider: Missing maximum value.');
+        assert(Info.Default,  'AddSlider: Missing default value.');
+        assert(Info.Text,     'AddSlider: Missing slider text.');
+        assert(Info.Min,      'AddSlider: Missing minimum value.');
+        assert(Info.Max,      'AddSlider: Missing maximum value.');
         assert(Info.Rounding, 'AddSlider: Missing rounding value.');
+
         local Slider = {
-            Value = Info.Default;
-            Min = Info.Min;
-            Max = Info.Max;
+            Value   = Info.Default;
+            Min     = Info.Min;
+            Max     = Info.Max;
             Rounding = Info.Rounding;
             MaxSize = 232;
-            Type = 'Slider';
+            Type    = 'Slider';
             Callback = Info.Callback or function(Value) end;
         };
 
-        local Groupbox = self;
+        local Groupbox  = self;
         local Container = Groupbox.Container;
-        if not Info.Compact then
-            Library:CreateLabel({
-                Size = UDim2.new(1, 0, 0, 10);
-                TextSize = Library.FontSize;
-                Text = Info.Text;
-                TextXAlignment = Enum.TextXAlignment.Left;
-                TextYAlignment = Enum.TextYAlignment.Bottom;
-                ZIndex = 5;
-                Parent = Container;
-            });
-            Groupbox:AddBlank(3);
-        end
+
+        -- Отдельный label сверху убран — текст теперь живёт внутри бара.
 
         local SliderOuter = Library:Create('Frame', {
             BackgroundColor3 = Color3.new(0, 0, 0);
-            BorderColor3 = Color3.new(0, 0, 0);
-            Size = UDim2.new(1, -4, 0, 13);
-            ZIndex = 5;
-            Parent = Container;
+            BorderColor3     = Color3.new(0, 0, 0);
+            Size             = UDim2.new(1, -4, 0, 13);
+            ZIndex           = 5;
+            Parent           = Container;
         });
-        Library:AddToRegistry(SliderOuter, {
-            BorderColor3 = 'Black';
-        });
+        Library:AddToRegistry(SliderOuter, { BorderColor3 = 'Black' });
+
         local SliderInner = Library:Create('Frame', {
             BackgroundColor3 = Library.MainColor;
-            BorderColor3 = Library.OutlineColor;
-            BorderMode = Enum.BorderMode.Inset;
-            Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 6;
-            Parent = SliderOuter;
+            BorderColor3     = Library.OutlineColor;
+            BorderMode       = Enum.BorderMode.Inset;
+            Size             = UDim2.new(1, 0, 1, 0);
+            ZIndex           = 6;
+            Parent           = SliderOuter;
         });
         Library:AddToRegistry(SliderInner, {
             BackgroundColor3 = 'MainColor';
-            BorderColor3 = 'OutlineColor';
+            BorderColor3     = 'OutlineColor';
         });
+
         local Fill = Library:Create('Frame', {
             BackgroundColor3 = Library.AccentColor;
-            BorderColor3 = Library.AccentColorDark;
-            Size = UDim2.new(0, 0, 1, 0);
-            ZIndex = 7;
-            Parent = SliderInner;
+            BorderColor3     = Library.AccentColorDark;
+            Size             = UDim2.new(0, 0, 1, 0);
+            ZIndex           = 7;
+            Parent           = SliderInner;
         });
         Library:AddToRegistry(Fill, {
             BackgroundColor3 = 'AccentColor';
-            BorderColor3 = 'AccentColorDark';
-        });
-        local HideBorderRight = Library:Create('Frame', {
-            BackgroundColor3 = Library.AccentColor;
-            BorderSizePixel = 0;
-            Position = UDim2.new(1, 0, 0, 0);
-            Size = UDim2.new(0, 1, 1, 0);
-            ZIndex = 8;
-            Parent = Fill;
+            BorderColor3     = 'AccentColorDark';
         });
 
-        Library:AddToRegistry(HideBorderRight, {
-            BackgroundColor3 = 'AccentColor';
+        local HideBorderRight = Library:Create('Frame', {
+            BackgroundColor3 = Library.AccentColor;
+            BorderSizePixel  = 0;
+            Position         = UDim2.new(1, 0, 0, 0);
+            Size             = UDim2.new(0, 1, 1, 0);
+            ZIndex           = 8;
+            Parent           = Fill;
         });
+        Library:AddToRegistry(HideBorderRight, { BackgroundColor3 = 'AccentColor' });
+
+        -- DisplayLabel: центрированный текст поверх заливки
         local DisplayLabel = Library:CreateLabel({
-            Size = UDim2.new(1, 0, 1, 0);
-            TextSize = Library.FontSize;
-            Text = 'Infinite';
-            ZIndex = 9;
-            Parent = SliderInner;
+            Size             = UDim2.new(1, 0, 1, 0);
+            TextSize         = Library.FontSize;
+            Text             = '';
+            ZIndex           = 9;
+            Parent           = SliderInner;
         });
+
         Library:OnHighlight(SliderOuter, SliderOuter,
             { BorderColor3 = 'AccentColor' },
             { BorderColor3 = 'Black' }
         );
+
         if type(Info.Tooltip) == 'string' then
             Library:AddToolTip(Info.Tooltip, SliderOuter)
         end
 
         function Slider:UpdateColors()
             Fill.BackgroundColor3 = Library.AccentColor;
-            Fill.BorderColor3 = Library.AccentColorDark;
+            Fill.BorderColor3     = Library.AccentColorDark;
         end;
 
         function Slider:Display()
-            local Suffix = Info.Suffix or '';
-            if Info.Compact then
-                DisplayLabel.Text = Info.Text .. ': ' .. Slider.Value .. Suffix
-            elseif Info.HideMax then
-                DisplayLabel.Text = string.format('%s', Slider.Value .. Suffix)
-            else
-                DisplayLabel.Text = string.format('%s/%s', Slider.Value .. Suffix, Slider.Max .. Suffix);
-            end
+            -- Суффикс: кастомный если передан, иначе '%'
+            local Suffix = Info.Suffix or '%';
+            DisplayLabel.Text = Info.Text .. ': ' .. Slider.Value .. Suffix;
 
             local X = math.ceil(Library:MapValue(Slider.Value, Slider.Min, Slider.Max, 0, Slider.MaxSize));
             Fill.Size = UDim2.new(0, X, 1, 0);
-
             HideBorderRight.Visible = not (X == Slider.MaxSize or X == 0);
         end;
+
         function Slider:OnChanged(Func)
             Slider.Changed = Func;
             Func(Slider.Value);
         end;
+
         local function Round(Value)
             if Slider.Rounding == 0 then
                 return math.floor(Value);
             end;
-
             return tonumber(string.format('%.' .. Slider.Rounding .. 'f', Value))
         end;
+
         function Slider:GetValueFromXOffset(X)
             return Round(Library:MapValue(X, 0, Slider.MaxSize, Slider.Min, Slider.Max));
         end;
+
         function Slider:SetValue(Str)
             local Num = tonumber(Str);
-            if (not Num) then
-                return;
-            end;
+            if (not Num) then return; end;
 
             Num = math.clamp(Num, Slider.Min, Slider.Max);
-
             Slider.Value = Num;
             Slider:Display();
 
             Library:SafeCallback(Slider.Callback, Slider.Value);
-            Library:SafeCallback(Slider.Changed, Slider.Value);
+            Library:SafeCallback(Slider.Changed,  Slider.Value);
         end;
-        SliderInner.InputBegan:Connect(function(Input)
-            if (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) and not Library:MouseIsOverOpenedFrame() then
-                
-                local function UpdateSlider(PosX)
-                    local gPos = Fill.AbsolutePosition.X
-                    
-                    local Diff = PosX - gPos
-                    local nX = math.clamp(Diff, 0, Slider.MaxSize)
 
+        SliderInner.InputBegan:Connect(function(Input)
+            if (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+                and not Library:MouseIsOverOpenedFrame() then
+
+                local function UpdateSlider(PosX)
+                    local gPos   = Fill.AbsolutePosition.X
+                    local Diff   = PosX - gPos
+                    local nX     = math.clamp(Diff, 0, Slider.MaxSize)
                     local nValue = Slider:GetValueFromXOffset(nX);
                     local OldValue = Slider.Value;
-    
-                    Slider.Value = nValue;
 
+                    Slider.Value = nValue;
                     Slider:Display();
 
                     if nValue ~= OldValue then
                         Library:SafeCallback(Slider.Callback, Slider.Value);
-                        Library:SafeCallback(Slider.Changed, Slider.Value);
+                        Library:SafeCallback(Slider.Changed,  Slider.Value);
                     end;
                 end
 
@@ -2479,9 +2464,9 @@ do
         Groupbox:Resize();
 
         Options[Idx] = Slider;
-
         return Slider;
     end;
+
     function Funcs:AddDropdown(Idx, Info)
         if Info.SpecialType == 'Player' then
             Info.Values = GetPlayersString();
