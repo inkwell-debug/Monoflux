@@ -14,7 +14,6 @@ local ProtectGui = protectgui or (syn and syn.protect_gui) or (function() end);
 local ScreenGui = Instance.new('ScreenGui');
 ProtectGui(ScreenGui);
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global;
-ScreenGui.IgnoreGuiInset = true;
 ScreenGui.Parent = CoreGui;
 
 local Toggles = {};
@@ -69,7 +68,11 @@ Library.CursorLoopRunning = false;
 
 function Library:CursorPos()
     local loc = InputService:GetMouseLocation()
-    return loc.X, loc.Y
+    local insetY = 0
+    pcall(function()
+        insetY = game:GetService("GuiService"):GetGuiInset().Y
+    end)
+    return loc.X, loc.Y - insetY
 end
 
 Library.BlurEffect = Instance.new("BlurEffect")
@@ -346,26 +349,31 @@ function Library:AddToolTip(InfoStr, HoverInstance)
     local IsHovering = false
     local TooltipLoop = nil
 
-    local function placeTooltip()
+        local function placeTooltip()
         local cx, cy = Library:CursorPos()
-        
+        local inset = Vector2.zero
+        pcall(function()
+            inset = game:GetService("GuiService"):GetGuiInset()
+        end)
+        cx = cx - inset.X
+        cy = cy - inset.Y
         local offsetX, offsetY = 14, 18
         local cam = workspace.CurrentCamera
-        local vw = cam and cam.ViewportSize.X or 1920
-        local vh = cam and cam.ViewportSize.Y or 1080
+        local vw = (cam and cam.ViewportSize.X or 1920) - inset.X
+        local vh = (cam and cam.ViewportSize.Y or 1080) - inset.Y
         local tw = Tooltip.AbsoluteSize.X
         local th = Tooltip.AbsoluteSize.Y
         if tw <= 0 then tw = Tooltip.Size.X.Offset end
         if th <= 0 then th = Tooltip.Size.Y.Offset end
         local x = cx + offsetX
         local y = cy + offsetY
-        
         if x + tw > vw - 4 then x = cx - tw - 8 end
         if y + th > vh - 4 then y = cy - th - 8 end
         if x < 4 then x = 4 end
         if y < 4 then y = 4 end
         Tooltip.Position = UDim2.fromOffset(math.floor(x), math.floor(y))
     end
+
 
     HoverInstance.MouseEnter:Connect(function()
         if Library:MouseIsOverOpenedFrame() then
@@ -1231,21 +1239,18 @@ do
         });
         local ModeSelectOuter = Library:Create('Frame', {
             BorderColor3 = Color3.new(0, 0, 0);
-            Position = UDim2.fromOffset(ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X + 4, ToggleLabel.AbsolutePosition.Y + 1);
-            Size = UDim2.new(0, 60, 0, 45 + 2);
+            Position = UDim2.fromOffset(0, 0);
+            Size = UDim2.new(0, 72, 0, 47);
             Visible = false;
-            ZIndex = 14;
+            ZIndex = 200;
             Parent = ScreenGui;
         });
-        ToggleLabel:GetPropertyChangedSignal('AbsolutePosition'):Connect(function()
-            ModeSelectOuter.Position = UDim2.fromOffset(ToggleLabel.AbsolutePosition.X + ToggleLabel.AbsoluteSize.X + 4, ToggleLabel.AbsolutePosition.Y + 1);
-        end);
         local ModeSelectInner = Library:Create('Frame', {
             BackgroundColor3 = Library.BackgroundColor;
             BorderColor3 = Library.OutlineColor;
             BorderMode = Enum.BorderMode.Inset;
             Size = UDim2.new(1, 0, 1, 0);
-            ZIndex = 15;
+            ZIndex = 201;
             Parent = ModeSelectOuter;
         });
         Library:AddToRegistry(ModeSelectInner, {
@@ -1257,6 +1262,40 @@ do
             SortOrder = Enum.SortOrder.LayoutOrder;
             Parent = ModeSelectInner;
         });
+
+        local function updateModeSelectPos()
+            local inset = Vector2.zero
+            pcall(function()
+                inset = game:GetService("GuiService"):GetGuiInset()
+            end)
+            local abs = PickOuter.AbsolutePosition
+            local asz = PickOuter.AbsoluteSize
+            local menuH = ModeSelectOuter.Size.Y.Offset
+            local menuW = ModeSelectOuter.Size.X.Offset
+            local cam = workspace.CurrentCamera
+            local vw = (cam and cam.ViewportSize.X or 1920)
+            local vh = (cam and cam.ViewportSize.Y or 1080)
+            -- convert AbsolutePosition -> ScreenGui coords (no IgnoreGuiInset)
+            local x = abs.X - inset.X
+            local yBelow = abs.Y + asz.Y + 4 - inset.Y
+            local yAbove = abs.Y - menuH - 4 - inset.Y
+            local y = yBelow
+            -- prefer BELOW the key button so it does not cover the opener
+            if yBelow + menuH > (vh - inset.Y) - 8 and yAbove > 4 then
+                y = yAbove
+            end
+            if x + menuW > (vw - inset.X) - 8 then
+                x = (vw - inset.X) - menuW - 8
+            end
+            if x < 4 then x = 4 end
+            if y < 4 then y = 4 end
+            ModeSelectOuter.Position = UDim2.fromOffset(math.floor(x), math.floor(y))
+        end
+        updateModeSelectPos();
+        ToggleLabel:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateModeSelectPos);
+        ToggleLabel:GetPropertyChangedSignal('AbsoluteSize'):Connect(updateModeSelectPos);
+        PickOuter:GetPropertyChangedSignal('AbsolutePosition'):Connect(updateModeSelectPos);
+
         local KeybindEntry = Library:Create('Frame', {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 18),
@@ -1275,17 +1314,26 @@ do
         }, true)
 
         local Modes = Info.Modes or { 'Always', 'Toggle', 'Hold' };
+        ModeSelectOuter.Size = UDim2.new(0, 72, 0, (#Modes * 15) + 2);
         local ModeButtons = {};
 
         for Idx, Mode in next, Modes do
             local ModeButton = {};
-            local Label = Library:CreateLabel({
-                Active = false;
+            -- TextButton so mobile taps register without drag-from-outside
+            local Btn = Library:Create('TextButton', {
+                BackgroundTransparency = 1;
                 Size = UDim2.new(1, 0, 0, 15);
-                TextSize = Library.FontSize - 1;
                 Text = Mode;
-                ZIndex = 16;
+                Font = Library.Font;
+                TextSize = Library.FontSize - 1;
+                TextColor3 = Library.FontColor;
+                AutoButtonColor = false;
+                Active = true;
+                ZIndex = 202;
                 Parent = ModeSelectInner;
+            });
+            Library:AddToRegistry(Btn, {
+                TextColor3 = 'FontColor';
             });
             function ModeButton:Select()
                 for _, Button in next, ModeButtons do
@@ -1294,22 +1342,30 @@ do
 
                 KeyPicker.Mode = Mode;
 
-                Label.TextColor3 = Library.AccentColor;
-                Library.RegistryMap[Label].Properties.TextColor3 = 'AccentColor';
+                Btn.TextColor3 = Library.AccentColor;
+                if Library.RegistryMap[Btn] then
+                    Library.RegistryMap[Btn].Properties.TextColor3 = 'AccentColor';
+                end
 
                 ModeSelectOuter.Visible = false;
             end;
             function ModeButton:Deselect()
-                KeyPicker.Mode = nil;
-                Label.TextColor3 = Library.FontColor;
-                Library.RegistryMap[Label].Properties.TextColor3 = 'FontColor';
+                Btn.TextColor3 = Library.FontColor;
+                if Library.RegistryMap[Btn] then
+                    Library.RegistryMap[Btn].Properties.TextColor3 = 'FontColor';
+                end
             end;
 
-            Label.InputBegan:Connect(function(Input)
-                if (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) then
-                    ModeButton:Select();
-                    Library:AttemptSave();
-                end;
+            local function onPick()
+                ModeButton:Select();
+                Library:AttemptSave();
+            end
+            Btn.MouseButton1Click:Connect(onPick)
+            Btn.InputBegan:Connect(function(Input)
+                if Input.UserInputType == Enum.UserInputType.MouseButton1
+                    or Input.UserInputType == Enum.UserInputType.Touch then
+                    onPick();
+                end
             end);
             if Mode == KeyPicker.Mode then
                 ModeButton:Select();
@@ -1419,7 +1475,7 @@ do
         local TouchMoveThreshold = Info.TouchMoveThreshold or 10;
 
         local function OpenModeSelect()
-            ModeSelectOuter.Visible = true;
+            updateModeSelectPos(); ModeSelectOuter.Visible = true;
         end;
 
         local function BeginPicking()
